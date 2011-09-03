@@ -84,9 +84,11 @@ end
 
 class DB
   SHARD_COUNT = 4
-  MAX_CONN = 150
+  MAX_CONN = 8
   DBCONN = {:host => "10.1.1.10", :username => "devcamp", :password => "devcamp"}
+  #DBCONN = {:host => "localhost", :username => "root"}
   @@db = Twit::ConnectionPool.new(size: MAX_CONN/SHARD_COUNT) do
+    puts "PULA"
     (1..SHARD_COUNT).map do |i|
       Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
     end
@@ -96,9 +98,13 @@ class DB
     counter = SHARD_COUNT
     ret = []
     @@db.execute(true) do |acquired, fiber|
-      #puts "me acquired"
       acquired.each do |db|
-        db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
+        q = db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'")
+        q.errback do |r|
+          puts "User get error: #{r}"
+          counter -= 1
+        end
+        q.callback do |r|
           counter -= 1
           if r.size > 0
             r.each do |userRow|
@@ -119,8 +125,8 @@ class DB
       if db.nil? 
         yield nil
       else
-				#puts user_id
-        query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
+        #query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
+        yield nil
       end
     end
   end
@@ -129,7 +135,7 @@ class DB
     counter = SHARD_COUNT
     result = []
     @@db.execute(true) do |acquired, fiber|
-      puts "Acquired pool"
+      #puts "Acquired pool"
       check_finish = Proc.new do 
         #puts "Checking #{counter}"
         counter -= 1
@@ -139,7 +145,6 @@ class DB
           yield result
         end
       end
-      p acquired.size
       acquired.each do |db|
         #puts "Querying: #{db.inspect}"
         begin

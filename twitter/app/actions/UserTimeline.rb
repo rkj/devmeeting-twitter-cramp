@@ -9,7 +9,13 @@ class UserTimeline < Cramp::Action
         pool.release(fiber)
       else
         #puts "Query on #{fiber.inspect}"
-        db.aquery("SELECT * FROM statuses WHERE user_id = #{id}").callback do |r|
+        q = db.aquery("SELECT * FROM statuses WHERE user_id = #{id}")
+        q.errback do |r|
+          puts "Error123: #{r}"
+          finish
+          pool.release(fiber)
+        end
+        q.callback do |r|
           render '['
           result = r.map do |row|
             %{{"created_at":"#{row['created_at']}","text":"#{row['text']}","id":#{row['id']}}}
