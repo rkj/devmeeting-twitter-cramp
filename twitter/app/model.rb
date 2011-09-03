@@ -83,14 +83,17 @@ module Twit
 end
 
 class DB
-  @@db = Twit::ConnectionPool.new(size: 1) do
-    (1..4).map do |i|
-      Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter#{i}")
+  SHARD_COUNT = 4
+  MAX_CONN = 150
+  DBCONN = {:host => "10.1.1.10", :username => "devcamp", :password => "devcamp"}
+  @@db = Twit::ConnectionPool.new(size: MAX_CONN/SHARD_COUNT) do
+    (1..SHARD_COUNT).map do |i|
+      Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
     end
   end
 
   def db_for_user(name)
-    counter = 4
+    counter = SHARD_COUNT
     ret = []
     @@db.execute(true) do |acquired, fiber|
       #puts "me acquired"
@@ -123,7 +126,7 @@ class DB
   end
 
   def query_all(query)
-    counter = 4
+    counter = SHARD_COUNT
     result = []
     @@db.execute(true) do |acquired, fiber|
       puts "Acquired pool"
