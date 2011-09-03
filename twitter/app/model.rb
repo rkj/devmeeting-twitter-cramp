@@ -81,14 +81,30 @@ module Twit
 end
 
 class DB
-	@@db1 = Twit::ConnectionPool.new(size: 10) do
-		Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter1")
+	@@db = Twit::ConnectionPool.new(size: 10) do
+		(1..4).map do |i|
+		Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter#{i}")
+		end
 	end
+
 	def db_for_user(name)
-    puts "HALO"
-    @@db1.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
-      p "1", r
-    end
+		counter = 4
+		@@db.execute(true) do |acquired|
+			acquired.each do |db|
+				db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
+					counter -= 1
+					if r.size > 0
+						r.each do |userRow|
+							counter = -1
+							yield db, userRow['id']
+						end
+					end
+					if counter == 0
+						yield nil, nil
+					end
+				end
+			end
+		end
 	end
 
   def test

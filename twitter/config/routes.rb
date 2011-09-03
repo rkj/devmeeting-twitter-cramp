@@ -4,5 +4,5 @@ HttpRouter.new do
   add('/hi').to(HiStatuses)
 	add('/statuses/home_timeline').to(HomeTimeline)
 	add('/statuses/user_timeline').to(UserTimeline)
-	add('/statuses/update').to(Update)
+	add('/statuses/update.json').to(Update)
 end
