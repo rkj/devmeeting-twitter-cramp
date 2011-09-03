@@ -2,7 +2,7 @@
 HttpRouter.new do
   add('/').to(Hello)
   add('/hi').to(HiStatuses)
-	add('/statuses/home_timeline').to(HomeTimeline)
-	add('/statuses/user_timeline').to(UserTimeline)
+	add('/statuses/home_timeline.json').to(HomeTimeline)
+	add('/statuses/user_timeline.json').to(UserTimeline)
 	add('/statuses/update.json').to(Update)
 end
