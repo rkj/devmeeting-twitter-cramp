@@ -1,0 +1,10 @@
+source :rubygems
+
+gem 'sinatra'
+gem 'mysql2'
+gem 'json'
+
+group :development do
+  # Development gems
+  # gem 'ruby-debug19'
+end

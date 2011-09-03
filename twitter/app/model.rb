@@ -88,7 +88,8 @@ class DB
   DBCONN = {:host => "10.1.1.10", :username => "devcamp", :password => "devcamp"}
   @@db = Twit::ConnectionPool.new(size: MAX_CONN/SHARD_COUNT) do
     (1..SHARD_COUNT).map do |i|
-      Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
+      conn = Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
+			[conn, i]
     end
   end
 
