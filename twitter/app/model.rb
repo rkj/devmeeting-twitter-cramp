@@ -83,36 +83,63 @@ module Twit
 end
 
 class DB
-	@@db = Twit::ConnectionPool.new(size: 1) do
-		(1..4).map do |i|
-		Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter#{i}")
-		end
-	end
+  @@db = Twit::ConnectionPool.new(size: 1) do
+    (1..4).map do |i|
+      Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter#{i}")
+    end
+  end
 
-	def db_for_user(name)
-		counter = 4
+  def db_for_user(name)
+    counter = 4
     ok = false
-		@@db.execute(true) do |acquired, fiber|
+    @@db.execute(true) do |acquired, fiber|
       #puts "me acquired"
-			acquired.each do |db|
-				db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
-					counter -= 1
-					if r.size > 0
-						r.each do |userRow|
+      acquired.each do |db|
+        db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
+          counter -= 1
+          if r.size > 0
+            r.each do |userRow|
               ok = true
-							yield db, userRow['id'], @@db, fiber
-						end
-					end
-					if !ok && counter == 0
-						yield nil, nil, @@db, fiber
-					end
-				end
-			end
-		end
-	end
+              yield db, userRow['id'], @@db, fiber
+            end
+          end
+          if !ok && counter == 0
+            yield nil, nil, @@db, fiber
+          end
+        end
+      end
+    end
+  end
 
-  def test
-    puts "TEST"
+  def home_timeline(name, &blk)
+    db_for_user(name) do |db, user_id, pool, fiber|
+      pool.release(fiber)
+      query_all("SELECT * FROM statuses s, followers f WHERE s.user_id = f.user.id AND f.follower_id = #{user_id}", &blk)
+    end
+  end
+
+  def query_all(query)
+    counter = 4
+    result = []
+    @@db.execute(true) do |acquired, fiber|
+      puts "Acquired pool"
+      check_finish = Proc.new do 
+        puts "Checking"
+        counter -= 1
+        if counter == 0
+          @@db.release(fiber)
+          yield result
+        end
+      end
+      acquired.each do |db|
+        q = db.aquery(query)
+        q.errback { |r| puts "ERROR in #{query} on #{db.inspect}:\n#{r}"; check_finish.call }
+        q.callback do |r|
+          result += r.each.to_a
+          check_finish.call
+        end
+      end
+    end
   end
 
 end
