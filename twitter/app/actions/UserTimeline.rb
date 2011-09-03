@@ -1,5 +1,5 @@
 class UserTimeline < Cramp::Action
-  use_fiber_pool :size => 1000
+  use_fiber_pool# :size => 1000
 
   def start
     DB.new.db_for_user(params[:screen_name]) do |db, id, pool, fiber|
@@ -9,11 +9,11 @@ class UserTimeline < Cramp::Action
         pool.release(fiber)
       else
         #puts "Query on #{fiber.inspect}"
-        q = db.aquery("SELECT * FROM statuses WHERE user_id = #{id}")
+        q = db.aquery("SELECT * FROM statuses WHERE user_id = #{id} LIMIT 20")
         q.errback do |r|
           puts "Error123: #{r}"
-          finish
           pool.release(fiber)
+          finish
         end
         q.callback do |r|
           render '['
@@ -22,8 +22,9 @@ class UserTimeline < Cramp::Action
           end.join(",\n")
           render result
           render ']'
-          finish
+          #puts "Releasing #{fiber.inspect} from #{db.inspect}"
           pool.release(fiber)
+          finish
         end
       end
     end

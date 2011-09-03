@@ -2,7 +2,7 @@ require 'em-synchrony/mysql2'
 require 'cramp/exception_handler'
 
 class HomeTimeline < Cramp::Action
-  use_fiber_pool :size => 1000
+  use_fiber_pool :size => 1
 	def start
     DB.new.home_timeline(params[:screen_name]) do |tweets|
       if tweets.nil?

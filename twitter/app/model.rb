@@ -31,7 +31,7 @@ module Twit
     # - if connection is available, pass it back to the calling block
     # - if pool is full, yield the current fiber until connection is available
     def acquire(fiber)
-      #puts "ACQUIRE #{fiber.inspect}"
+     #puts "ACQUIRE #{fiber.inspect}"
 
       if conn = @available.pop
         @reserved[fiber.object_id] = conn
@@ -46,7 +46,7 @@ module Twit
     # resume any other pending connections (which will
     # immediately try to run acquire on the pool)
     def release(fiber)
-      #puts "Releaseing fiber: #{fiber.inspect}"
+     #puts "RELEASEING: #{fiber.inspect}"
       @available.push(@reserved.delete(fiber.object_id))
 
       if pending = @pending.shift
@@ -84,13 +84,14 @@ end
 
 class DB
   SHARD_COUNT = 4
-  MAX_CONN = 8
-  DBCONN = {:host => "10.1.1.10", :username => "devcamp", :password => "devcamp"}
+  #MAX_CONN = 8
+  #DBCONN = {:host => "10.1.1.10", :username => "devcamp", :password => "devcamp"}
   #DBCONN = {:host => "localhost", :username => "root"}
   @@db = Twit::ConnectionPool.new(size: MAX_CONN/SHARD_COUNT) do
-    puts "PULA"
+   #puts "PULA"
     (1..SHARD_COUNT).map do |i|
-      Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
+      conn = Mysql2::EM::Client.new(DBCONN.merge(:database => "twitter#{i}"))
+      [conn, i]
     end
   end
 
@@ -98,13 +99,16 @@ class DB
     counter = SHARD_COUNT
     ret = []
     @@db.execute(true) do |acquired, fiber|
-      acquired.each do |db|
+     #puts "Acquired #{fiber.inspect} on dbs: #{acquired.inspect}"
+      acquired.each do |db, dbno|
+       #puts "Querying: #{db.inspect}"
         q = db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'")
         q.errback do |r|
-          puts "User get error: #{r}"
+         #puts "User get error: #{r}"
           counter -= 1
         end
         q.callback do |r|
+         #puts "Result from #{db.inspect}"
           counter -= 1
           if r.size > 0
             r.each do |userRow|
@@ -125,8 +129,7 @@ class DB
       if db.nil? 
         yield nil
       else
-        #query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
-        yield nil
+        query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id} LIMIT 20", &blk)
       end
     end
   end
@@ -135,27 +138,26 @@ class DB
     counter = SHARD_COUNT
     result = []
     @@db.execute(true) do |acquired, fiber|
-      #puts "Acquired pool"
       check_finish = Proc.new do 
         #puts "Checking #{counter}"
         counter -= 1
         if counter == 0
           @@db.release(fiber)
-          #puts "SENDING RESULTS"
+          puts "SENDING RESULTS #{result.size}"
           yield result
         end
       end
-      acquired.each do |db|
+      acquired.each do |db, dbno|
         #puts "Querying: #{db.inspect}"
         begin
-        q = db.aquery(query)
+          q = db.aquery(query)
         rescue => e
           p e
           next
         end
         q.errback { |r| puts "ERROR in #{query} on #{db.inspect}:\n#{r}"; check_finish.call }
         q.callback do |r|
-          #puts "Partial results: #{r.size}"
+          puts "Partial results: #{r.size} for #{dbno}"
           result += r.each.to_a
           check_finish.call
           #puts "Bye"
