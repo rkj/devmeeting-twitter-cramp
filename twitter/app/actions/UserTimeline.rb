@@ -1,4 +1,6 @@
 class UserTimeline < Cramp::Action
+  use_fiber_pool
+
 	def start
 		DB.new.db_for_user(params[:screen_name]) do |db, id|
 			if db == nil
