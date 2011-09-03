@@ -8,7 +8,7 @@ class UserTimeline < Cramp::Action
         finish
         pool.release(fiber)
       else
-        puts "Query on #{fiber.inspect}"
+        #puts "Query on #{fiber.inspect}"
         db.aquery("SELECT * FROM statuses WHERE user_id = #{id}").callback do |r|
           render '['
           result = r.map do |row|
