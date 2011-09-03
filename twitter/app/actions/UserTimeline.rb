@@ -1,5 +1,5 @@
 class UserTimeline < Cramp::Action
-  use_fiber_pool
+	use_fiber_pool :size => 1000
 
 	def start
 		DB.new.db_for_user(params[:screen_name]) do |db, id|
