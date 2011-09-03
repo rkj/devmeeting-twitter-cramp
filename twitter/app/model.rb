@@ -119,7 +119,7 @@ class DB
       if db.nil? 
         yield nil
       else
-				puts user_id
+				#puts user_id
         query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
       end
     end
@@ -131,17 +131,17 @@ class DB
     @@db.execute(true) do |acquired, fiber|
       puts "Acquired pool"
       check_finish = Proc.new do 
-        puts "Checking #{counter}"
+        #puts "Checking #{counter}"
         counter -= 1
         if counter == 0
           @@db.release(fiber)
-          puts "SENDING RESULTS"
+          #puts "SENDING RESULTS"
           yield result
         end
       end
       p acquired.size
       acquired.each do |db|
-        puts "Querying: #{db.inspect}"
+        #puts "Querying: #{db.inspect}"
         begin
         q = db.aquery(query)
         rescue => e
@@ -150,10 +150,10 @@ class DB
         end
         q.errback { |r| puts "ERROR in #{query} on #{db.inspect}:\n#{r}"; check_finish.call }
         q.callback do |r|
-          puts "Partial results: #{r.size}"
+          #puts "Partial results: #{r.size}"
           result += r.each.to_a
           check_finish.call
-          puts "Bye"
+          #puts "Bye"
         end
       end
     end
