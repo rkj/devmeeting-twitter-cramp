@@ -100,16 +100,12 @@ class DB
 					if r.size > 0
 						r.each do |userRow|
               ok = true
-							yield db, userRow['id']
+							yield db, userRow['id'], @@db, fiber
 						end
 					end
 					if !ok && counter == 0
-						yield nil, nil
+						yield nil, nil, @@db, fiber
 					end
-          if counter <= 0
-            #puts "Me release"
-            @@db.release(fiber)
-          end
 				end
 			end
 		end
