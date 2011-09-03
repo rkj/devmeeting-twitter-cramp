@@ -15,7 +15,6 @@ class Update < Cramp::Action
 			end
 			query.callback do |r|
 				db.aquery("SELECT LAST_INSERT_ID() AS x").callback do |idc|
-					p idc
 					render %{{"created_at":"#{createdAt}","id":#{idc.each.to_a[0]['x']}}}
 					pool.release(fiber)
 					finish
