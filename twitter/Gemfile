@@ -13,6 +13,7 @@ gem 'async-rack'
 
 gem 'em-synchrony'
 gem 'mysql2'
+gem 'json'
 
 # For async Active Record models
 # gem 'mysql2', '~> 0.2.11'
