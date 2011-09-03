@@ -116,7 +116,8 @@ class DB
       if db.nil? 
         yield nil
       else
-        query_all("SELECT * FROM statuses s, followers f WHERE s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
+				puts user_id
+        query_all("SELECT s.id, s.text, s.created_at, u.id AS user_id, u.name, u.screen_name FROM statuses s, followers f, users u WHERE u.id = s.user_id AND s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
       end
     end
   end
