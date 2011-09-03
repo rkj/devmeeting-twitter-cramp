@@ -8,15 +8,18 @@ class Update < Cramp::Action
 		createdAt = Time.now.to_s
 
 		DB.new.db_for_user(name) do |db, id, pool, fiber|
-			query = db.aquery("INSERT INTO statuses (text, created_at, user_id) VALUES ('#{status}', '#{createdAt}', #{id}); SELECT LAST_INSERT_ID();")
+			query = db.aquery("INSERT INTO statuses (text, created_at, user_id) VALUES ('#{status}', '#{createdAt}', #{id});")
 			query.errback do |r| 
 				p r
 				finish
 			end
 			query.callback do |r|
-				p r
-				pool.release(fiber)
-				finish
+				db.aquery("SELECT LAST_INSERT_ID() AS x").callback do |idc|
+					p idc
+					render %{{"created_at":"#{createdAt}","id":#{idc.each.to_a[0]['x']}}}
+					pool.release(fiber)
+					finish
+				end
 			end
 		end
 
