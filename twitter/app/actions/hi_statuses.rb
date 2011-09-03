@@ -1,0 +1,7 @@
+
+class HiStatuses < Cramp::Action
+  def start
+    render "Hello World!\n"
+    finish
+  end
+end
