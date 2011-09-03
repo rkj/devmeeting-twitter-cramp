@@ -11,7 +11,7 @@ class HomeTimeline < Cramp::Action
       end
       render '['
       result = tweets.map do |row|
-        %{{"created_at":#{row['created_at']},"text":#{row['text']},"id":#{row['id']}}}
+        %{{"created_at":"#{row['created_at']}","text":"#{row['text']}","id":#{row['id']},"user":{"id":#{row['user_id']},"name":"#{row['name']}","screen_name":"#{row['screen_name']}"}}}
       end.join(",\n")
       render result
       render ']'
