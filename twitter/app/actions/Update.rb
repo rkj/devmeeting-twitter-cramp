@@ -1,7 +1,5 @@
-require 'em-synchrony/mysql2'
-require 'cramp/exception_handler'
-
 class Update < Cramp::Action
+  use_fiber_pool :size => 1000
 	def start
 		name = params[:screen_name]
 		status = params[:status]
