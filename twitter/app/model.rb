@@ -21,7 +21,7 @@ module Twit
 
       begin
         conn = acquire(f)
-        yield conn
+        yield conn, f
       ensure
         release(f) if not async
       end
@@ -31,6 +31,7 @@ module Twit
     # - if connection is available, pass it back to the calling block
     # - if pool is full, yield the current fiber until connection is available
     def acquire(fiber)
+      #puts "ACQUIRE #{fiber.inspect}"
 
       if conn = @available.pop
         @reserved[fiber.object_id] = conn
@@ -45,6 +46,7 @@ module Twit
     # resume any other pending connections (which will
     # immediately try to run acquire on the pool)
     def release(fiber)
+      #puts "Releaseing fiber: #{fiber.inspect}"
       @available.push(@reserved.delete(fiber.object_id))
 
       if pending = @pending.shift
@@ -81,7 +83,7 @@ module Twit
 end
 
 class DB
-	@@db = Twit::ConnectionPool.new(size: 10) do
+	@@db = Twit::ConnectionPool.new(size: 1) do
 		(1..4).map do |i|
 		Mysql2::EM::Client.new(:host => "10.1.1.10", :username => "devcamp", :password => "devcamp", :database => "twitter#{i}")
 		end
@@ -89,19 +91,25 @@ class DB
 
 	def db_for_user(name)
 		counter = 4
-		@@db.execute(true) do |acquired|
+    ok = false
+		@@db.execute(true) do |acquired, fiber|
+      #puts "me acquired"
 			acquired.each do |db|
 				db.aquery("SELECT id FROM users WHERE screen_name = '#{name}'").callback do |r|
 					counter -= 1
 					if r.size > 0
 						r.each do |userRow|
-							counter = -1
+              ok = true
 							yield db, userRow['id']
 						end
 					end
-					if counter == 0
+					if !ok && counter == 0
 						yield nil, nil
 					end
+          if counter <= 0
+            #puts "Me release"
+            @@db.release(fiber)
+          end
 				end
 			end
 		end
