@@ -9,7 +9,6 @@ class HomeTimeline < Cramp::Action
         render "Czego?\n"
         return finish
       end
-      render "I have #{tweets.size}\n#{tweets[0].inspect}\n"
       render '['
       result = tweets.map do |row|
         %{{"created_at":"#{row['created_at']}","text":"#{row['text']}","id":#{row['id']},"user":{"id":#{row['user_id']},"name":"#{row['name']}","screen_name":"#{row['screen_name']}"}}}
