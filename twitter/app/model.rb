@@ -91,7 +91,7 @@ class DB
 
   def db_for_user(name)
     counter = 4
-    ok = false
+    ret = []
     @@db.execute(true) do |acquired, fiber|
       #puts "me acquired"
       acquired.each do |db|
@@ -99,12 +99,11 @@ class DB
           counter -= 1
           if r.size > 0
             r.each do |userRow|
-              ok = true
-              yield db, userRow['id'], @@db, fiber
+              ret = [db, userRow['id']]
             end
           end
-          if !ok && counter == 0
-            yield nil, nil, @@db, fiber
+          if counter == 0
+            yield ret[0], ret[1], @@db, fiber
           end
         end
       end
@@ -114,7 +113,11 @@ class DB
   def home_timeline(name, &blk)
     db_for_user(name) do |db, user_id, pool, fiber|
       pool.release(fiber)
-      query_all("SELECT * FROM statuses s, followers f WHERE s.user_id = f.user.id AND f.follower_id = #{user_id}", &blk)
+      if db.nil? 
+        yield nil
+      else
+        query_all("SELECT * FROM statuses s, followers f WHERE s.user_id = f.user_id AND f.follower_id = #{user_id}", &blk)
+      end
     end
   end
 
@@ -124,19 +127,29 @@ class DB
     @@db.execute(true) do |acquired, fiber|
       puts "Acquired pool"
       check_finish = Proc.new do 
-        puts "Checking"
+        puts "Checking #{counter}"
         counter -= 1
         if counter == 0
           @@db.release(fiber)
+          puts "SENDING RESULTS"
           yield result
         end
       end
+      p acquired.size
       acquired.each do |db|
+        puts "Querying: #{db.inspect}"
+        begin
         q = db.aquery(query)
+        rescue => e
+          p e
+          next
+        end
         q.errback { |r| puts "ERROR in #{query} on #{db.inspect}:\n#{r}"; check_finish.call }
         q.callback do |r|
+          puts "Partial results: #{r.size}"
           result += r.each.to_a
           check_finish.call
+          puts "Bye"
         end
       end
     end
