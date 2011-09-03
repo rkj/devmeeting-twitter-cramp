@@ -1,23 +1,30 @@
 class UserTimeline < Cramp::Action
-  use_fiber_pool :size => 1000
+  use_fiber_pool# :size => 1000
 
   def start
-    DB.new.db_for_user(params[:screen_name]) do |db, id, pool, fiber|
+    DB.new.db_for_user(params[:screen_name]) do |db, id, conns|
       if db == nil
         render "WON!"
         finish
-        pool.release(fiber)
+        conns.each { |c| c.close }
       else
         #puts "Query on #{fiber.inspect}"
-        db.aquery("SELECT * FROM statuses WHERE user_id = #{id} LIMIT 20").callback do |r|
+        q = db.aquery("SELECT * FROM statuses WHERE user_id = #{id} LIMIT 20")
+        q.errback do |r|
+          puts "Error123: #{r}"
+          conns.each { |c| c.close }
+          finish
+        end
+        q.callback do |r|
           render '['
           result = r.map do |row|
             %{{"created_at":"#{row['created_at']}","text":"#{row['text']}","id":#{row['id']}}}
           end.join(",\n")
           render result
           render ']'
+          #puts "Releasing #{fiber.inspect} from #{db.inspect}"
+          conns.each { |c| c.close }
           finish
-          pool.release(fiber)
         end
       end
     end
